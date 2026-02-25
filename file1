@@ -1,0 +1,105 @@
+# Early-Warning-System-for-Climate-Disasters
+# Using Synthetic Data
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix
+
+# Set random seed
+np.random.seed(42)
+
+# -----------------------------
+# 1. Generate Synthetic Climate Data
+# -----------------------------
+
+n_samples = 1000
+
+rainfall = np.random.normal(200, 50, n_samples)          # mm
+temperature = np.random.normal(30, 5, n_samples)         # Celsius
+river_level = np.random.normal(5, 1.5, n_samples)        # meters
+humidity = np.random.normal(75, 10, n_samples)           # %
+
+# Create synthetic disaster risk (Flood Risk)
+risk_score = (
+    0.4 * rainfall +
+    0.3 * river_level * 50 +
+    0.2 * humidity -
+    0.1 * temperature
+)
+
+threshold = np.percentile(risk_score, 70)
+disaster = (risk_score > threshold).astype(int)
+
+# Create DataFrame
+data = pd.DataFrame({
+    "Rainfall_mm": rainfall,
+    "Temperature_C": temperature,
+    "River_Level_m": river_level,
+    "Humidity_%": humidity,
+    "Disaster_Risk": disaster
+})
+
+print(data.head())
+
+# -----------------------------
+# 2. Train/Test Split
+# -----------------------------
+
+X = data.drop("Disaster_Risk", axis=1)
+y = data["Disaster_Risk"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# -----------------------------
+# 3. Train Machine Learning Model
+# -----------------------------
+
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# -----------------------------
+# 4. Model Evaluation
+# -----------------------------
+
+y_pred = model.predict(X_test)
+
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+# -----------------------------
+# 5. Early Warning Prediction Function
+# -----------------------------
+
+def early_warning_system(rainfall, temperature, river_level, humidity):
+    input_data = np.array([[rainfall, temperature, river_level, humidity]])
+    prediction = model.predict(input_data)[0]
+    probability = model.predict_proba(input_data)[0][1]
+
+    if prediction == 1:
+        print(f"⚠️ ALERT: High Disaster Risk! (Probability: {probability:.2f})")
+    else:
+        print(f"✅ Safe Conditions. (Probability: {probability:.2f})")
+
+# Example Alert Test
+early_warning_system(300, 28, 8, 90)
+
+# -----------------------------
+# 6. Feature Importance Plot
+# -----------------------------
+
+importances = model.feature_importances_
+features = X.columns
+
+plt.figure()
+plt.bar(features, importances)
+plt.xticks(rotation=45)
+plt.title("Feature Importance for Disaster Prediction")
+plt.show()
